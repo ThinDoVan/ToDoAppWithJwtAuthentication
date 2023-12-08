@@ -1,9 +1,13 @@
 package com.example.todoappwithjwtauthentication.entites;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
+
+import java.util.Set;
 
 @Entity
 @Table(name = "users",
@@ -27,11 +31,16 @@ public class User {
     private String email;
     @NotBlank
     @Size(min = 8, max = 120)
+    @JsonIgnore
     private String password;
 
     @ManyToOne
-    @JoinColumn(name = "user_id")
+    @JoinColumn(name = "role_id")
     private Role role;
+
+    @ManyToMany(mappedBy = "userSet")
+    @JsonIgnore
+    private Set<ToDo> toDoSet;
 
     public User() {
     }
@@ -89,5 +98,13 @@ public class User {
 
     public void setRole(Role role) {
         this.role = role;
+    }
+
+    public Set<ToDo> getToDoSet() {
+        return toDoSet;
+    }
+
+    public void setToDoSet(Set<ToDo> toDoSet) {
+        this.toDoSet = toDoSet;
     }
 }

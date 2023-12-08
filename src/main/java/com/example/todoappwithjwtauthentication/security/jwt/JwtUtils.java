@@ -37,7 +37,8 @@ public class JwtUtils {
 
     public String getUserNameFromJwtToken(String token) {
         return Jwts.parserBuilder().setSigningKey(key()).build()
-                .parseClaimsJwt(token).getBody().getSubject();
+                .parseClaimsJws(token).getBody().getSubject();
+
     }
 
     public boolean validateJwtToken(String authToken) {
@@ -50,8 +51,8 @@ public class JwtUtils {
             logger.error("JWT token quá hạn: {}", e.getMessage());
         } catch (UnsupportedJwtException e) {
             logger.error("JWT token không được hỗ trợ: {}", e.getMessage());
-        } catch (IllegalArgumentException e){
-            logger.error("JWT nhận chuỗi trống: {}",e.getMessage());
+        } catch (IllegalArgumentException e) {
+            logger.error("JWT nhận chuỗi trống: {}", e.getMessage());
         }
         return false;
     }
