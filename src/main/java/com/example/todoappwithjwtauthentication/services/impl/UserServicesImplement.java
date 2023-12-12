@@ -32,38 +32,46 @@ public class UserServicesImplement implements UserServices {
     PasswordEncoder encoder;
     @Autowired
     JwtUtils jwtUtils;
+
     @Override
     public ResponseEntity<JwtResponse> signIn(LoginRequest loginRequest) {
-        Authentication authentication=authenticationManager.authenticate(new UsernamePasswordAuthenticationToken(loginRequest.getUserName(), loginRequest.getPassword()));
+        Authentication authentication = authenticationManager.authenticate(new UsernamePasswordAuthenticationToken(loginRequest.getUserName(), loginRequest.getPassword()));
         SecurityContextHolder.getContext().setAuthentication(authentication);
         String jwt = jwtUtils.generateJwtToken(authentication);
         UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
         String roles = userDetails.getAuthorities().toString();
-        return ResponseEntity.ok().body(new JwtResponse(jwt, userDetails.getId(), userDetails.getUsername(), userDetails.getEmail(),roles));
+        return ResponseEntity.ok().body(new JwtResponse(jwt, userDetails.getId(), userDetails.getUsername(), userDetails.getEmail(), roles));
     }
 
     @Override
     public ResponseEntity<MessageResponse> register(SignupRequest signupRequest) {
         String regex = "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[@$!%*?#&])[A-Za-z\\d@$!%*?&]{8,}$";
-        if(signupRequest.getUserName()==null){
+        if (signupRequest.getUserName() == null) {
             return ResponseEntity.badRequest().body((new MessageResponse("Họ tên không được để trống")));
         }
-            if (userRepository.existsUserByUsername(signupRequest.getUserName())){
+        if (signupRequest.getUserName().equals("")){
+            return ResponseEntity.badRequest().body((new MessageResponse("Username không được để trống")));
+        }
+        if (userRepository.existsUserByUsername(signupRequest.getUserName())) {
             return ResponseEntity.badRequest().body((new MessageResponse("Username đã tồn tại")));
         }
-        if (userRepository.existsUserByEmail(signupRequest.getEmail())){
+        if (signupRequest.getEmail().equals("")){
+            return ResponseEntity.badRequest().body((new MessageResponse("Email không được để trống")));
+        }
+        if (userRepository.existsUserByEmail(signupRequest.getEmail())) {
             return ResponseEntity.badRequest().body(new MessageResponse("Email đã được sử dụng"));
         }
-        if(signupRequest.getPassword().matches(regex)==false){
+        if (signupRequest.getPassword().matches(regex) == false) {
             return ResponseEntity.badRequest().body(new MessageResponse("Mật khẩu phải tối thiểu 8 ký tự, bao gồm chữ số, chữ hoa, chữ thường, ký hiệu đặc biệt"));
         }
         User user = new User(signupRequest.getFullName(), signupRequest.getUserName(), signupRequest.getEmail(), encoder.encode(signupRequest.getPassword()));
         String strRole = signupRequest.getRole();
-        if((strRole!=null)&&(strRole.equalsIgnoreCase("admin"))){
-            user.setRole(roleRepository.findByeRole(ERole.ROLE_ADMIN).orElseThrow(()->new RuntimeException("Không tìm thấy Role")));
-        }else {
-            user.setRole(roleRepository.findByeRole(ERole.ROLE_USER).orElseThrow(()->new RuntimeException("Không tìm thấy Role")));
+        if ((strRole != null) && (strRole.equalsIgnoreCase("admin"))) {
+            user.setRole(roleRepository.findByeRole(ERole.ROLE_ADMIN).orElseThrow(() -> new RuntimeException("Không tìm thấy Role")));
+        } else {
+            user.setRole(roleRepository.findByeRole(ERole.ROLE_USER).orElseThrow(() -> new RuntimeException("Không tìm thấy Role")));
         }
         userRepository.save(user);
-        return ResponseEntity.ok(new MessageResponse("Đăng ký người dùng thành công"));    }
+        return ResponseEntity.ok(new MessageResponse("Đăng ký người dùng thành công"));
+    }
 }

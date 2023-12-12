@@ -2,11 +2,14 @@ package com.example.todoappwithjwtauthentication.controllers;
 
 import com.example.todoappwithjwtauthentication.dto.requests.ToDoRequest;
 import com.example.todoappwithjwtauthentication.dto.responses.MessageResponse;
-import com.example.todoappwithjwtauthentication.entites.ToDo;
+import com.example.todoappwithjwtauthentication.dto.responses.ToDoResponse;
+import com.example.todoappwithjwtauthentication.enums.ETag;
 import com.example.todoappwithjwtauthentication.services.ToDoServices;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -26,17 +29,19 @@ public class TodoControllers {
 
     @GetMapping(value = "/admin/LayToanBoDanhSachToDo")
 //    @PreAuthorize("hasRole('ROLE_ADMIN')")
-    public ResponseEntity<List<ToDo>> getListToDo(@RequestParam(required = false, defaultValue = "0") Integer page,
-                                                  @RequestParam(required = false, defaultValue = "5") Integer size) {
+    public ResponseEntity<List<ToDoResponse>> getListToDo(@RequestParam(required = false, defaultValue = "0") Integer page,
+                                                          @RequestParam(required = false, defaultValue = "5") Integer size) {
         return toDoServices.getAllToDo(page, size);
     }
 
-    @GetMapping(value = "/LayDanhSachToDo")
+    @GetMapping(value = "/LayDanhSachToDoNguoiDung")
     @PreAuthorize("hasAnyRole('ROLE_USER','ROLE_ADMIN')")
-    public ResponseEntity<?> getListToDoById(@RequestParam Integer userId,
-                                             @RequestParam(required = false, defaultValue = "0") Integer page,
-                                             @RequestParam(required = false, defaultValue = "5") Integer size) {
-        return toDoServices.getUserToDo(userId, page, size);
+    public ResponseEntity<?> getListToDoByUsername(@AuthenticationPrincipal UserDetails userDetails,
+                                                   @RequestParam(required = false, defaultValue = "0") Integer page,
+                                                   @RequestParam(required = false, defaultValue = "5") Integer size) {
+        String username = userDetails.getUsername();
+            return toDoServices.getUserToDo(username, page, size);
+
     }
 
     @GetMapping(value = "/LayToDo")

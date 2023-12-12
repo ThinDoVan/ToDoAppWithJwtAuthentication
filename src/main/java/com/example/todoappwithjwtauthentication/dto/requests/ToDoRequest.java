@@ -9,10 +9,8 @@ import java.time.LocalDate;
 import java.util.Set;
 
 public class ToDoRequest {
-//    @NotBlank
     private String title;
     private String description;
-//    @NotBlank
     private LocalDate deadline;
     private PriorityLevel priorityLevel;
     private Set<User> userSet;
