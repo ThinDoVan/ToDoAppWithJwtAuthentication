@@ -6,6 +6,8 @@ import com.example.todoappwithjwtauthentication.dto.responses.JwtResponse;
 import com.example.todoappwithjwtauthentication.dto.responses.MessageResponse;
 import com.example.todoappwithjwtauthentication.entites.User;
 import com.example.todoappwithjwtauthentication.enums.ERole;
+import com.example.todoappwithjwtauthentication.exceptions.DataNotFoundException;
+import com.example.todoappwithjwtauthentication.exceptions.InvalidDataException;
 import com.example.todoappwithjwtauthentication.repositories.RoleRepository;
 import com.example.todoappwithjwtauthentication.repositories.UserRepository;
 import com.example.todoappwithjwtauthentication.security.jwt.JwtUtils;
@@ -34,44 +36,44 @@ public class UserServicesImplement implements UserServices {
     JwtUtils jwtUtils;
 
     @Override
-    public ResponseEntity<JwtResponse> signIn(LoginRequest loginRequest) {
+    public JwtResponse signIn(LoginRequest loginRequest) {
         Authentication authentication = authenticationManager.authenticate(new UsernamePasswordAuthenticationToken(loginRequest.getUserName(), loginRequest.getPassword()));
         SecurityContextHolder.getContext().setAuthentication(authentication);
         String jwt = jwtUtils.generateJwtToken(authentication);
         UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
         String roles = userDetails.getAuthorities().toString();
-        return ResponseEntity.ok().body(new JwtResponse(jwt, userDetails.getId(), userDetails.getUsername(), userDetails.getEmail(), roles));
+        return new JwtResponse(jwt, userDetails.getId(), userDetails.getUsername(), userDetails.getEmail(), roles);
     }
 
     @Override
-    public ResponseEntity<MessageResponse> register(SignupRequest signupRequest) {
+    public MessageResponse register(SignupRequest signupRequest) {
         String regex = "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[@$!%*?#&])[A-Za-z\\d@$!%*?&]{8,}$";
         if (signupRequest.getUserName() == null) {
-            return ResponseEntity.badRequest().body((new MessageResponse("Họ tên không được để trống")));
+            throw new InvalidDataException("Họ tên không được để trống");
         }
         if (signupRequest.getUserName().equals("")){
-            return ResponseEntity.badRequest().body((new MessageResponse("Username không được để trống")));
+            throw new InvalidDataException("Username không được để trống");
         }
         if (userRepository.existsUserByUsername(signupRequest.getUserName())) {
-            return ResponseEntity.badRequest().body((new MessageResponse("Username đã tồn tại")));
+            throw new InvalidDataException("Username đã tồn tại");
         }
         if (signupRequest.getEmail().equals("")){
-            return ResponseEntity.badRequest().body((new MessageResponse("Email không được để trống")));
+            throw new InvalidDataException("Email không được để trống");
         }
         if (userRepository.existsUserByEmail(signupRequest.getEmail())) {
-            return ResponseEntity.badRequest().body(new MessageResponse("Email đã được sử dụng"));
+            throw new InvalidDataException("Email đã được sử dụng");
         }
         if (signupRequest.getPassword().matches(regex) == false) {
-            return ResponseEntity.badRequest().body(new MessageResponse("Mật khẩu phải tối thiểu 8 ký tự, bao gồm chữ số, chữ hoa, chữ thường, ký hiệu đặc biệt"));
+            throw new InvalidDataException("Mật khẩu phải tối thiểu 8 ký tự, bao gồm chữ số, chữ hoa, chữ thường, ký hiệu đặc biệt");
         }
         User user = new User(signupRequest.getFullName(), signupRequest.getUserName(), signupRequest.getEmail(), encoder.encode(signupRequest.getPassword()));
         String strRole = signupRequest.getRole();
         if ((strRole != null) && (strRole.equalsIgnoreCase("admin"))) {
-            user.setRole(roleRepository.findByeRole(ERole.ROLE_ADMIN).orElseThrow(() -> new RuntimeException("Không tìm thấy Role")));
+            user.setRole(roleRepository.findByeRole(ERole.ROLE_ADMIN).orElseThrow(() -> new DataNotFoundException("Không tìm thấy Role")));
         } else {
-            user.setRole(roleRepository.findByeRole(ERole.ROLE_USER).orElseThrow(() -> new RuntimeException("Không tìm thấy Role")));
+            user.setRole(roleRepository.findByeRole(ERole.ROLE_USER).orElseThrow(() -> new DataNotFoundException("Không tìm thấy Role")));
         }
         userRepository.save(user);
-        return ResponseEntity.ok(new MessageResponse("Đăng ký người dùng thành công"));
+        return new MessageResponse("Đăng ký người dùng thành công");
     }
 }

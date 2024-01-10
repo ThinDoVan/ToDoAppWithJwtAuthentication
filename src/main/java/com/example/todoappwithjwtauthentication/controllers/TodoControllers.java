@@ -6,6 +6,7 @@ import com.example.todoappwithjwtauthentication.dto.responses.ToDoResponse;
 import com.example.todoappwithjwtauthentication.enums.ETag;
 import com.example.todoappwithjwtauthentication.services.ToDoServices;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -24,42 +25,42 @@ public class TodoControllers {
     @PostMapping(value = "/ThemToDo")
     @PreAuthorize("hasRole('ROLE_ADMIN')")
     public ResponseEntity<MessageResponse> addToDo(@RequestBody ToDoRequest toDoRequest) {
-        return toDoServices.addNewToDo(toDoRequest);
+        return ResponseEntity.ok(toDoServices.addNewToDo(toDoRequest));
     }
 
     @GetMapping(value = "/admin/LayToanBoDanhSachToDo")
 //    @PreAuthorize("hasRole('ROLE_ADMIN')")
-    public ResponseEntity<List<ToDoResponse>> getListToDo(@RequestParam(required = false, defaultValue = "0") Integer page,
+    public ResponseEntity<Page<ToDoResponse>> getListToDo(@RequestParam(required = false, defaultValue = "0") Integer page,
                                                           @RequestParam(required = false, defaultValue = "5") Integer size) {
-        return toDoServices.getAllToDo(page, size);
+        return ResponseEntity.ok(toDoServices.getAllToDo(page, size));
     }
 
     @GetMapping(value = "/LayDanhSachToDoNguoiDung")
     @PreAuthorize("hasAnyRole('ROLE_USER','ROLE_ADMIN')")
-    public ResponseEntity<?> getListToDoByUsername(@AuthenticationPrincipal UserDetails userDetails,
+    public ResponseEntity<Page<ToDoResponse>> getListToDoByUsername(@AuthenticationPrincipal UserDetails userDetails,
                                                    @RequestParam(required = false, defaultValue = "0") Integer page,
                                                    @RequestParam(required = false, defaultValue = "5") Integer size) {
         String username = userDetails.getUsername();
-            return toDoServices.getUserToDo(username, page, size);
+        return ResponseEntity.ok(toDoServices.getUserToDo(username, page, size));
 
     }
 
     @GetMapping(value = "/LayToDo")
     @PreAuthorize("hasAnyRole('ROLE_USER','ROLE_ADMIN')")
     public ResponseEntity<?> getToDoById(@RequestParam Integer toDoId) {
-        return toDoServices.getToDo(toDoId);
+        return ResponseEntity.ok(toDoServices.getToDo(toDoId));
     }
 
     @PutMapping(value = "/SuaToDo")
     @PreAuthorize("hasRole('ROLE_ADMIN')")
     public ResponseEntity<MessageResponse> updateToDo(@RequestParam int toDoId,
                                                       @RequestBody ToDoRequest toDoRequest) {
-        return toDoServices.updateToDo(toDoId, toDoRequest);
+        return ResponseEntity.ok(toDoServices.updateToDo(toDoId, toDoRequest));
     }
 
     @DeleteMapping(value = "/XoaToDo")
     @PreAuthorize("hasRole('ROLE_ADMIN')")
     public ResponseEntity<MessageResponse> deleteToDo(@RequestParam int toDoId) {
-        return toDoServices.removeToDo(toDoId);
+        return ResponseEntity.ok(toDoServices.removeToDo(toDoId));
     }
 }

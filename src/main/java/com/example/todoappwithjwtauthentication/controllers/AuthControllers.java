@@ -20,12 +20,14 @@ public class AuthControllers {
 
     @PostMapping("/signin")
     public ResponseEntity<JwtResponse> authenticateUser(@Valid @RequestBody LoginRequest loginRequest){
-        return userServices.signIn(loginRequest);
+        JwtResponse responseBody = userServices.signIn(loginRequest)
+        return ResponseEntity.ok(responseBody);
     }
 
     @PostMapping("/signup")
     public ResponseEntity<MessageResponse> registerUser(@Valid @RequestBody SignupRequest signupRequest){
-        return userServices.register(signupRequest);
+        MessageResponse message = userServices.register(signupRequest);
+        return ResponseEntity.ok(message);
     }
 
 }

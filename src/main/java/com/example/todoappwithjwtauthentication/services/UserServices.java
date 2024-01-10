@@ -7,6 +7,6 @@ import com.example.todoappwithjwtauthentication.dto.responses.MessageResponse;
 import org.springframework.http.ResponseEntity;
 
 public interface UserServices {
-    ResponseEntity<JwtResponse> signIn(LoginRequest loginRequest);
-    ResponseEntity<MessageResponse> register(SignupRequest signupRequest);
+    JwtResponse signIn(LoginRequest loginRequest);
+    MessageResponse register(SignupRequest signupRequest);
 }

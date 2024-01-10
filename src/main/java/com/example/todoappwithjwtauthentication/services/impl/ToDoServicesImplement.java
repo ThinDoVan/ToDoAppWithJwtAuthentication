@@ -9,11 +9,14 @@ import com.example.todoappwithjwtauthentication.entites.User;
 import com.example.todoappwithjwtauthentication.enums.EPriorityLevel;
 import com.example.todoappwithjwtauthentication.enums.EStatus;
 import com.example.todoappwithjwtauthentication.enums.ETag;
+import com.example.todoappwithjwtauthentication.exceptions.DataNotFoundException;
+import com.example.todoappwithjwtauthentication.exceptions.InvalidDataException;
 import com.example.todoappwithjwtauthentication.repositories.*;
 import com.example.todoappwithjwtauthentication.services.ToDoServices;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
-import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
@@ -32,12 +35,16 @@ public class ToDoServicesImplement implements ToDoServices {
     @Autowired
     UserRepository userRepository;
 
-    private List<ToDoResponse> pagingList(List<ToDoResponse> list, int page, int size) {
+    private <T> Page<T> pagingList(List<T> list, int page, int size) {
         PageRequest pageRequest = PageRequest.of(page, size);
         int start = (int) pageRequest.getOffset();
         int end = Math.min((start + pageRequest.getPageSize()), list.size());
-        return list.subList(start, end);
-    }
+        if (end >= start) {
+            List<T> pageData = list.subList(start, end);
+            return new PageImpl<>(pageData, pageRequest, list.size());
+        } else {
+            throw new IllegalArgumentException("Vượt quá số trang tối đa");
+        }    }
 
     private List<ToDoResponse> convertToListToDoResponse(List<ToDo> listTodo) {
         List<ToDoResponse> toDoResponseList = new ArrayList<>();
@@ -59,29 +66,29 @@ public class ToDoServicesImplement implements ToDoServices {
     }
 
     @Override
-    public ResponseEntity<MessageResponse> addNewToDo(ToDoRequest toDoRequest) {
+    public MessageResponse addNewToDo(ToDoRequest toDoRequest) {
         if (toDoRequest.getTitle() == null) {
-            return ResponseEntity.badRequest().body(new MessageResponse("Tiêu đề không được để trống"));
+            throw new InvalidDataException("Tiêu đề không được để trống");
         }
         if (toDoRequest.getDeadline() == null) {
-            return ResponseEntity.badRequest().body(new MessageResponse("Deadline không được để trống"));
+            throw new InvalidDataException("Deadline không được để trống");
         }
         if (toDoRequest.getDeadline().isBefore(LocalDate.now())) {
-            return ResponseEntity.badRequest().body(new MessageResponse("Deadline không thể trước ngày hiện tại"));
+            throw new InvalidDataException("Deadline không thể trước ngày hiện tại");
         }
         ToDo toDo = new ToDo(toDoRequest.getTitle(),
                 toDoRequest.getDescription(),
                 toDoRequest.getDeadline(),
                 toDoRequest.getUserSet(),
                 toDoRequest.getTagSet());
-        toDo.setStatus(statusRepository.findByeStatus(EStatus.PENDING).orElseThrow(() -> new RuntimeException("Không tìm thấy Status")));
+        toDo.setStatus(statusRepository.findByeStatus(EStatus.PENDING).orElseThrow(() -> new DataNotFoundException("Không tìm thấy Status")));
         if (toDoRequest.getPriorityLevel() == null) {
-            toDo.setPriorityLevel(priorityLevelRepository.findByePriorityLevel(EPriorityLevel.PRIORITY_LEVEL_LOW).orElseThrow(() -> new RuntimeException("Không tìm thấy Priority Level")));
+            toDo.setPriorityLevel(priorityLevelRepository.findByePriorityLevel(EPriorityLevel.PRIORITY_LEVEL_LOW).orElseThrow(() -> new DataNotFoundException("Không tìm thấy Priority Level")));
         } else {
-            toDo.setPriorityLevel(priorityLevelRepository.findByePriorityLevel(toDoRequest.getPriorityLevel().getePriorityLevel()).orElseThrow(() -> new RuntimeException("Không tìm thấy Priority Level")));
+            toDo.setPriorityLevel(priorityLevelRepository.findByePriorityLevel(toDoRequest.getPriorityLevel().getePriorityLevel()).orElseThrow(() -> new DataNotFoundException("Không tìm thấy Priority Level")));
         }
         toDoRepository.save(toDo);
-        return ResponseEntity.ok().body(new MessageResponse("Thêm mới To do thành công"));
+        return new MessageResponse("Thêm mới To do thành công");
 
     }
 
@@ -98,74 +105,72 @@ public class ToDoServicesImplement implements ToDoServices {
 //        return ResponseEntity.ok().body(toDoResponseList);
 //    }
     @Override
-    public ResponseEntity<List<ToDoResponse>> getAllToDo(Integer page, Integer size) {
+    public Page<ToDoResponse> getAllToDo(Integer page, Integer size) {
         List<ToDo> toDoList = toDoRepository.findAll()
                 .stream().filter(toDo -> toDo.getStatus().geteStatus() != EStatus.DELETED).sorted()
                 .sorted(Comparator.comparing((ToDo todo)-> todo.getPriorityLevel().getPriorityLevelId())
                 .thenComparing(ToDo::getDeadline)).toList();
         List<ToDoResponse> toDoResponseList = this.convertToListToDoResponse(toDoList);
-        return ResponseEntity.ok().body(this.pagingList(toDoResponseList, page, size));
+        return this.pagingList(toDoResponseList, page, size);
     }
 
     @Override
-    public ResponseEntity<?> getUserToDo(String username, Integer page, Integer size) {
+    public Page<ToDoResponse> getUserToDo(String username, Integer page, Integer size) {
         Optional<User> user = userRepository.findUserByUsername(username);
         if (user.isEmpty()) {
-            return ResponseEntity.badRequest().body(new MessageResponse("Không tìm thấy User có Username " + username));
+            throw new DataNotFoundException("Không tìm thấy User có Username " + username);
         } else {
-            List<ToDoResponse> toDoResponseList = this.convertToListToDoResponse(user.get().getToDoSet().stream().toList());
-            toDoResponseList.stream()
+            List<ToDoResponse> toDoResponseList = this.convertToListToDoResponse(user.get().getToDoSet().stream().toList()).stream()
                     .filter((ToDoResponse toDo) -> toDo.getStatus() != EStatus.DELETED)
                     .sorted(Comparator.comparing(ToDoResponse::getPriorityLevel)
                             .thenComparing(ToDoResponse::getDeadline)).toList();
-            return ResponseEntity.ok().body(this.pagingList(toDoResponseList, page, size));
+            return this.pagingList(toDoResponseList, page, size);
         }
     }
 
     @Override
-    public ResponseEntity<?> getUserToDo(List<ETag> listTags, String username, Integer page, Integer size) {
+    public Page<ToDoResponse> getUserToDo(List<ETag> listTags, String username, Integer page, Integer size) {
         Optional<User> user = userRepository.findUserByUsername(username);
         if (user.isEmpty()) {
-            return ResponseEntity.badRequest().body(new MessageResponse("Không tìm thấy User có Username " + username));
+            throw new DataNotFoundException("Không tìm thấy User có Username " + username);
         } else {
-            List<ToDoResponse> toDoResponseList = this.convertToListToDoResponse(user.get().getToDoSet().stream().toList());
-            toDoResponseList.stream()
+            List<ToDoResponse> toDoResponseList = this.convertToListToDoResponse(user.get().getToDoSet().stream().toList()).stream()
                     .filter((ToDoResponse toDo) -> toDo.getStatus() != EStatus.DELETED)
                     .filter((ToDoResponse toDo) -> toDo.getTagSet().containsAll(listTags))
                     .sorted(Comparator.comparing(ToDoResponse::getPriorityLevel)
                             .thenComparing(ToDoResponse::getDeadline)).toList();
 
-            return ResponseEntity.ok().body(this.pagingList(toDoResponseList, page, size));
+            return this.pagingList(toDoResponseList, page, size);
         }
     }
 
     @Override
-    public ResponseEntity<?> getToDo(Integer toDoId) {
+    public ToDo getToDo(Integer toDoId) {
         Optional<ToDo> toDo = toDoRepository.findById(toDoId);
         if (toDo.isEmpty()) {
-            return ResponseEntity.badRequest().body(new MessageResponse("Không tìm thấy To do có Id " + toDoId));
+            throw new DataNotFoundException("Không tìm thấy To do có Id " + toDoId);
         } else {
-            return ResponseEntity.ok().body(toDo.get());
+            return toDo.get();
         }
     }
 
     @Override
-    public ResponseEntity<MessageResponse> removeToDo(int toDoId) {
+    public MessageResponse removeToDo(int toDoId) {
         Optional<ToDo> toDo = toDoRepository.findById(toDoId);
         if (toDo.isEmpty()) {
-            return ResponseEntity.badRequest().body(new MessageResponse("Không tìm thấy To do có Id " + toDoId));
+            throw new DataNotFoundException("Không tìm thấy To do có Id " + toDoId);
         } else {
             toDo.get().setStatus(statusRepository.findByeStatus(EStatus.DELETED).orElseThrow(() -> new RuntimeException("Không tìm thấy Status")));
             toDoRepository.save(toDo.get());
-            return ResponseEntity.ok().body(new MessageResponse("Xóa To do thành công"));
+            return new MessageResponse("Xóa To do thành công");
         }
     }
 
     @Override
-    public ResponseEntity<MessageResponse> updateToDo(int toDoId, ToDoRequest toDoRequest) {
+    public MessageResponse updateToDo(int toDoId, ToDoRequest toDoRequest) {
         Optional<ToDo> toDo = toDoRepository.findById(toDoId);
         if (toDo.isEmpty()) {
-            return ResponseEntity.badRequest().body(new MessageResponse("Không tìm thấy To do có Id " + toDoId));
+            throw new DataNotFoundException("Không tìm thấy To do có Id " + toDoId);
         } else {
             if (toDoRequest.getTitle() != null) {
                 toDo.get().setTitle(toDoRequest.getTitle());
@@ -175,7 +180,7 @@ public class ToDoServicesImplement implements ToDoServices {
             }
             if (toDoRequest.getDeadline() != null) {
                 if (toDoRequest.getDeadline().isBefore(LocalDate.now())) {
-                    return ResponseEntity.badRequest().body(new MessageResponse("Deadline không thể trước ngày hiện tại"));
+                    throw new InvalidDataException("Deadline không thể trước ngày hiện tại");
                 } else {
                     toDo.get().setDeadline(toDoRequest.getDeadline());
                 }
@@ -195,7 +200,7 @@ public class ToDoServicesImplement implements ToDoServices {
             tagSet.addAll(toDoRequest.getTagSet());
             toDo.get().setTagSet(tagSet);
             toDoRepository.save(toDo.get());
-            return ResponseEntity.ok().body(new MessageResponse("Sửa thông tìn To Do thành công"));
+            return new MessageResponse("Sửa thông tìn To Do thành công");
         }
     }
 }
